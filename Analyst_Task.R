@@ -13,8 +13,8 @@ data_2025 <- clean_names(data_2025)
 data_2024$year <- 2024
 data_2025$year <- 2025
 
-data_2024 <- data_2024 %>% rename(response = response_2024)
-data_2025 <- data_2025 %>% rename(response = response_2025)
+#data_2024 <- data_2024 %>% rename(response = response_2024)
+#data_2025 <- data_2025 %>% rename(response = response_2025)
 
 # Combine the datasets
 all_data <- bind_rows(data_2024, data_2025)
@@ -29,7 +29,7 @@ words <- all_data %>%
 
 words %>%
   count(word, sort = TRUE) %>%
-  top_n(20) %>%
+  top_n(25) %>%
   ggplot(aes(reorder(word, n), n)) +
   geom_col() +
   coord_flip() +
@@ -45,15 +45,43 @@ ggplot(word_counts_filtered, aes(label = word, size = n)) +
 
 ggsave("wordcloud.png", width = 8, height = 6)
 
-top_keywords <- "wifi"
+zoom_feedback <- all_data %>%
+  filter(str_detect(response, regex("zoom", ignore_case = TRUE)))
+View(zoom_feedback)
+
+# Load libraries
 library(dplyr)
 library(stringr)
+library(tidytext)
+library(ggplot2)
 
-# Example: Assuming your dataset is called 'all_data' and the column with responses is 'response'
-filtered_responses <- all_data %>%
-  filter(str_detect(response, paste(top_keywords, collapse = "|")))  # Filter rows containing any of the top keywords
+# 1. Filter responses that mention "zoom"
+zoom_feedback <- all_data %>%
+  filter(str_detect(response, regex("zoom", ignore_case = TRUE)))
 
-# View the filtered responses
-View(filtered_responses) # or just use View(filtered_responses) for a full view
+# 2. Tokenize the responses into words
+zoom_words <- zoom_feedback %>%
+  unnest_tokens(word, response)
 
+# 3. Remove stop words (built-in + custom)
+data("stop_words")
+custom_stop <- c("zoom", "pepperdine", "google")  # adjust as needed
+
+zoom_words_clean <- zoom_words %>%
+  filter(!word %in% stop_words$word) %>%   # built-in stop words
+  filter(!word %in% custom_stop)           # custom stop words
+
+# 4. Count word frequency
+zoom_word_counts <- zoom_words_clean %>%
+  count(word, sort = TRUE)
+
+# 5. Plot the top 10 most frequent words
+zoom_word_counts %>%
+  slice_max(n, n = 10) %>%
+  ggplot(aes(x = reorder(word, n), y = n)) +
+  geom_col(fill = "#0073C2FF") +
+  coord_flip() +
+  labs(title = "Top 10 Words in Zoom-Related Feedback",
+       x = "Word", y = "Frequency") +
+  theme_minimal()
 
